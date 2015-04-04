@@ -1,8 +1,9 @@
 var render = require('./lib/render');
 var chess = require('chess.js');
+var uuid = require('node-uuid');
 
 module.exports.home = function *home() {
-    this.body = yield render('home.jade');
+    this.redirect('/g/' + uuid.v4().replace(/-/g, ''));
 }
 
 module.exports.game = function *game(id) {
