@@ -132,7 +132,7 @@ html(lang="en")
               border = color === "White" ? "white" : "#9f6";
           }
 
-          $("#chessboard").children().css('border', '5px solid ' + border);
+          $("#chessboard").children().children().css('border', '8px solid ' + border);
           $("#turn").text(color);
 
           if (game.in_checkmate()) {
