@@ -72,6 +72,13 @@ html(lang="en")
           game.load_pgn(data.pgn);
           board.position(game.fen());
           updateStatus();
+
+          if (game.history().length == 0 &&
+              !data.blackPlayer &&
+              !data.whitePlayer) {
+            $("#status").text("Game has not yet started.");
+            $("#timer").hide();
+          }
       });
 
       socket.on('selected color', function(data) {
@@ -88,6 +95,8 @@ html(lang="en")
                 'data-player': data.playerId || socket.id
               });
           }
+
+          updateStatus();
       });
 
       socket.on('moved piece', function(data) {
@@ -174,6 +183,7 @@ html(lang="en")
       function updateStatus() {
           lastMove = new Date;
           updateTimer();
+          $("#timer").show();
 
           var color = game.turn() === "b" ? "Black" : "White";
 

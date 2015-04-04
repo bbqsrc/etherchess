@@ -163,6 +163,16 @@ module.exports.socket = function(socket) {
     });
 
     socket.on('select color', function(data) {
+        if (game.isPlayer(socket.id)) {
+            socket.emit('selected color', {
+                success: false,
+                color: data.color,
+                reason: "You are already a player."
+            });
+
+            return;
+        }
+
         if (data.color == "black" || data.color == "white") {
             if (game.record[data.color + "Player"]) {
                 socket.emit('selected color', {
@@ -171,7 +181,6 @@ module.exports.socket = function(socket) {
                     reason: "Player " + data.color + " already taken."
                 });
             } else {
-                console.log(socket.id);
                 game.setPlayer(data.color, socket.id).then(function() {
                     socket.emit('selected color', {
                         success: true,
@@ -192,7 +201,7 @@ module.exports.socket = function(socket) {
             return;
         }
 
-        var color = game.isPlayer(socket.id)
+        var color = game.isPlayer(socket.id);
 
         if (color) {
             game.setPlayer(color, null);
