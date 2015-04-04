@@ -121,8 +121,18 @@ html(lang="en")
       };
 
       function updateStatus() {
-          var color = game.turn() === "b" ? "Black" : "White"
+          var color = game.turn() === "b" ? "Black" : "White";
 
+          var playerIsWhite = board.orientation === "white";
+          var border;
+
+          if (playerIsWhite) {
+              border = color === "Black" ? "white" : "green";
+          } else {
+              border = color === "White" ? "white" : "green";
+          }
+
+          $("#chessboard").css('border', '3px solid ' + border);
           $("#turn").text(color);
 
           if (game.in_checkmate()) {
