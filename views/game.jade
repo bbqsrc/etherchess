@@ -1,0 +1,109 @@
+doctype html
+html(lang="en")
+  head
+    title EtherChess
+    script(src='/js/jquery-2.1.3.min.js')
+    script(src='/socket.io/socket.io.js')
+    script(src='/chess.min.js')
+    script(src='/js/chessboard-0.3.0.min.js')
+    link(rel='stylesheet', href='/css/chessboard-0.3.0.min.css')
+    style.
+      #chessboard {
+        height: 600px;
+        width: 600px;
+        display: inline-block;
+      }
+  body
+    #chessboard
+    button(type='button', class='btn-player-white') White
+    button(type='button', class='btn-player-black') Black
+    script.
+      var id = "#{id}";
+      var socket = io.connect(location.origin);
+
+      var board = new ChessBoard('chessboard', {
+          pieceTheme: '/img/chesspieces/wikipedia/{piece}.png',
+          draggable: true,
+          onDragStart: onDragStart,
+          onDrop: onDrop,
+          onSnapEnd: onSnapEnd
+      });
+
+      var game = Chess();
+
+      socket.on('connect', function() {
+          socket.emit('connected', {id: id})
+      });
+
+      socket.on('gamestate', function(data) {
+        console.log(data);
+          game.load(data.fen);
+          board.position(data.fen);
+      });
+
+      socket.on('selected color', function(data) {
+          console.log(data);
+
+          if (data.success) {
+              board.orientation(data.color);
+          }
+      });
+
+      socket.on('moved piece', function(data) {
+        console.log(data);
+
+        game.load(data.fen);
+        board.position(data.fen);
+      });
+
+      $(".btn-player-black").on('click', function() {
+          socket.emit('select color', { color: 'black' });
+      });
+
+      $(".btn-player-white").on('click', function() {
+          socket.emit('select color', { color: 'white' });
+      });
+
+      function onDragStart(src, piece, pos, orientation) {
+        if (game.game_over()) {
+          return false;
+        }
+
+        var orientColor = orientation.substring(0, 1);
+        if (game.turn() !== orientColor) {
+          return false;
+        }
+
+        var pieceColor = piece.substring(0, 1);
+        if (pieceColor !== orientColor) {
+          return false;
+        }
+      }
+
+      function onDrop(source, target) {
+        // see if the move is legal
+        var proposal = {
+          from: source,
+          to: target,
+          promotion: 'q' // NOTE: always promote to a queen for example simplicity
+        }
+
+        var move = game.move(proposal);
+
+        // illegal move
+        if (move === null) return 'snapback';
+
+        socket.emit('move piece', { move: proposal });
+
+        updateStatus();
+      };
+
+      // update the board position after the piece snap
+      // for castling, en passant, pawn promotion
+      function onSnapEnd() {
+        board.position(game.fen());
+      };
+
+      function updateStatus() {
+      };
+

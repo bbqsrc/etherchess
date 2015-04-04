@@ -1,0 +1,21 @@
+{
+  "name": "etherchess",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chess.js": "git://github.com/jhlywa/chess.js",
+    "co-views": "^0.3.0",
+    "jade": "^1.9.2",
+    "koa": "^0.18.1",
+    "koa-logger": "^1.2.2",
+    "koa-route": "^2.4.0",
+    "koa-static": "^1.4.9",
+    "socket.io": "^1.3.5"
+  }
+}
