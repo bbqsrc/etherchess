@@ -1,6 +1,7 @@
 var render = require('./lib/render');
 var chess = require('chess.js');
 var uuid = require('node-uuid');
+var monk = require('monk');
 
 module.exports.home = function *home() {
     this.redirect('/g/' + uuid.v4().replace(/-/g, ''));
@@ -10,85 +11,140 @@ module.exports.game = function *game(id) {
     this.body = yield render('game.jade', { id: id });
 }
 
-function Session(id) { this.id = id; this.record = Object.create(null); }
+var db = monk('localhost/chess');
 
-Session.prototype.set = function(key, value) {
-    if (arguments.length == 1) {
-        Object.keys(key).forEach(function(k) {
-            var v = key[k];
-            this.record[k] = v;
-        }, this);
-    } else {
-        this.record[key] = value;
+var GamesCollection = db.get('chess');
+
+function Game(doc) {
+    this.record = doc;
+    this.engine = chess.Chess();
+
+    if (doc.pgn) {
+        this.engine.load_pgn(doc.pgn)
     }
 }
 
-Session.prototype.get = function(key) {
-    return this.record[key];
+Game.prototype.setPlayer = function(color, id) {
+    this.record[color + "Player"] = id;
+    return this.save();
 }
 
-var Games = {
-    _sessions: {},
+Game.prototype.syncPGN = function() {
+    this.record.pgn = this.engine.pgn();
+    return this.save();
+}
 
-    get: function(gameId) {
-        return this._sessions[gameId];
-    },
+Game.prototype.save = function() {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        GamesCollection.updateById(self.record._id, {
+            $set: self.record
+        }).success(function(doc) {
+            resolve(doc);
+        }).error(function(err) {
+            reject(err);
+        });
+    });
+}
 
-    create: function(gameId) {
-        this._sessions[gameId] = new Session(gameId);
-        return this._sessions[gameId];
+Game.instances = new Map();
+
+Game.create = function(slug) {
+    if (Game.instances.has(slug)) {
+        return Promise.resolve(Game.instances.get(slug));
     }
+
+    return new Promise(function(resolve, reject) {
+        GamesCollection.insert({ slug: slug })
+        .success(function(doc) {
+            var game = new Game(doc);
+            Game.instances.set(slug, game);
+            resolve(game);
+        })
+        .error(function(err) { reject(err); })
+    });
 };
 
+Game.get = function(slug) {
+    if (Game.instances.has(slug)) {
+        return Promise.resolve(Game.instances.get(slug));
+    }
+
+    return new Promise(function(resolve, reject) {
+        GamesCollection.findOne({ slug: slug })
+        .success(function(doc) {
+            if (!doc) {
+                return resolve(null);
+            }
+
+            var game = new Game(doc);
+            Game.instances.set(slug, game);
+            return resolve(game);
+        })
+        .error(function(err) { reject(err); })
+    });
+};
+
+Game.getOrCreate = function(slug) {
+    if (Game.instances.has(slug)) {
+        return Promise.resolve(Game.instances.get(slug));
+    }
+
+    return new Promise(function(resolve, reject) {
+        Game.get(slug).then(function(doc) {
+            if (doc) {
+                return resolve(doc);
+            } else {
+                Game.create(slug).then(function(doc) {
+                    return resolve(doc);
+                });
+            }
+        });
+    });
+}
+
 module.exports.socket = function(socket) {
-    var gameId = null;
-
+    var gameId;
     var game;
-
-    var session; //= { get: function() { return false; }, set: function() {} };
 
     socket.on('connected', function(data) {
         gameId = data.id;
 
         socket.join(gameId);
 
-        session = Games.get(gameId);
+        // Get game.
+        Game.getOrCreate(gameId).then(function(g) {
+            game = g;
 
-        if (session == null) {
-            session = Games.create(gameId);
-            session.set('game', chess.Chess());
-        }
+            game.nope = uuid.v4();
 
-        game = session.get('game');
-
-        socket.emit('gamestate', {
-            id: gameId,
-            pgn: game.pgn()
+            socket.emit('gamestate', {
+                id: gameId,
+                pgn: game.engine.pgn()
+            });
         });
     });
 
     socket.on('move piece', function(data) {
-        var move = game.move(data.move);
+        var move = game.engine.move(data.move);
 
         if (move != null) {
-            socket.emit('moved piece', {
-                success: true,
-                move: move,
-                pgn: game.pgn()
+            game.syncPGN().then(function() {
+                socket.emit('moved piece', {
+                    success: true,
+                    move: move,
+                    pgn: game.engine.pgn()
+                });
+
+                socket.broadcast.to(gameId).emit('moved piece', {
+                    move: move,
+                    pgn: game.engine.pgn()
+                });
             });
 
-            socket.broadcast.to(gameId).emit('moved piece', {
-                move: move,
-                pgn: game.pgn()
-            });
         } else {
-            socket.emit('moved piece', {
-                success: false,
-                move: move,
-                pgn: game.pgn()
-            });
-
-            socket.broadcast.to(gameId).emit('moved piece', "ERROR");
+            console.error("!!!");
+            console.error(game.engine.ascii());
         }
         /*
         var possibleMoves = game.moves();
@@ -121,7 +177,8 @@ module.exports.socket = function(socket) {
                     reason: "Player " + data.color + " already taken."
                 });
             } else {
-                session.set(data.color + 'Player', socket.id);
+                //session.set(data.color + 'Player', socket.id);
+                //session.save();
                 socket.emit('selected color', {
                     success: true,
                     color: data.color

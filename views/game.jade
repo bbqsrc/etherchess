@@ -27,9 +27,9 @@ html(lang="en")
       #chessboard
       #messages
         #turn
-      .controls
-        button(type='button', class='btn-player-white') White
-        button(type='button', class='btn-player-black') Black
+        .controls
+          button(type='button', class='btn-player-white') White
+          button(type='button', class='btn-player-black') Black
       #pgn
     script.
       var id = "#{id}";
@@ -130,6 +130,10 @@ html(lang="en")
           }
 
           else if (game.in_draw()) {
+            $("#status").text("You have ended in a draw!");
+          }
+
+          else if (game.in_stalemate()) {
             $("#status").text("You have ended in a stalemate!");
           }
 
