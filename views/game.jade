@@ -18,8 +18,7 @@ html(lang="en")
       }
       #messages { vertical-align: top; display: inline-block; max-width: 360px; }
       #messages > * { margin-bottom: 1em; }
-      #turn:before { content: "Turn: "; }
-      #turn { font-weight: bold; }
+      #timer { margin-left: 0.5em; }
       #pgn, #fen { border: 1px solid #ddd; margin: 1em 1em; font-size: 90%; word-wrap: break-word; font-family: monospace; white-space: pre-wrap; }
       #status { color: red; line-height: 2.7em; font-weight: bold; font-size: 110%; height: 2em; margin: 0.5em 1em }
   body
@@ -28,6 +27,8 @@ html(lang="en")
       #chessboard
       #messages
         #turn
+          strong#color
+          span#timer
         .controls
           button(type='button', class='btn-player-white') White
           button(type='button', class='btn-player-black') Black
@@ -121,20 +122,44 @@ html(lang="en")
         board.position(game.fen());
       };
 
+      var timer = $("#timer"),
+          lastMove = new Date;
+
+      function compareDates(a, b) {
+        var diff = Math.abs(+b - +a) / 1000;
+
+        var mins = diff / 60 | 0;
+        var secs = "" + (diff % 60 | 0);
+
+        if (secs.length < 2) {
+          secs = "0" + secs;
+        }
+
+        return mins + ":" + secs;
+      }
+
+      function updateTimer() {
+          timer.text(compareDates(lastMove, new Date));
+      }
+      setInterval(updateTimer, 500);
+
       function updateStatus() {
+          lastMove = new Date;
+          updateTimer();
+
           var color = game.turn() === "b" ? "Black" : "White";
 
           var playerIsWhite = board.orientation === "white";
+          var isPlayerTurn = playerIsWhite && color === "White";
           var border;
 
           if (playerIsWhite) {
-              border = color === "Black" ? "white" : "#9f6";
+              border = color === "Black" ? "#333" : "#9f6";
           } else {
-              border = color === "White" ? "white" : "#9f6";
+              border = color === "White" ? "#333" : "#9f6";
           }
 
-          $("#chessboard").children().children().css('border', '8px solid ' + border);
-          $("#turn").text(color);
+          $("#color").text(color);
 
           if (game.in_checkmate()) {
             $("#status").text(color + " is in checkmate, and loses!");
@@ -150,11 +175,16 @@ html(lang="en")
 
           else if (game.in_check()) {
             $("#status").text(color + " is in check!");
+            if (isPlayerTurn) {
+                border = "red";
+            }
           }
 
           else {
             $("#status").empty();
           }
+
+          $("#chessboard").children().children().css('border', '8px solid ' + border);
 
           $("#pgn").text(game.pgn());
       };
