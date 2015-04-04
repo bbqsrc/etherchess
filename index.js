@@ -14,8 +14,8 @@ var routes = require('./routes.js');
 app.use(route.get('/', routes.home));
 app.use(route.get('/g/:id', routes.game));
 
-app.use(serve(__dirname + "/static"));
-app.use(serve(__dirname + "/node_modules/chess.js"));
+app.use(serve(__dirname + "/static", { maxage: 2592000000 }));
+app.use(serve(__dirname + "/node_modules/chess.js", { maxage: 2592000000 }));
 
 // init server
 var server = require('http').createServer(app.callback());
