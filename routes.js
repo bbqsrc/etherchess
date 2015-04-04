@@ -47,7 +47,6 @@ Game.prototype.syncPGN = function() {
 Game.prototype.save = function() {
     var self = this;
     return new Promise(function(resolve, reject) {
-        console.log(self.record);
         GamesCollection.updateById(self.record._id, {
             $set: self.record
         }).success(function(doc) {

@@ -16,6 +16,9 @@ html(lang="en")
         display: inline-block;
         margin-right: 1em;
       }
+      #chessboard > div > div {
+        border: 8px solid #333;
+      }
       #messages { vertical-align: top; display: inline-block; max-width: 360px; }
       #messages > * { margin-bottom: 1em; }
       #timer { margin-left: 0.5em; }
@@ -187,7 +190,7 @@ html(lang="en")
 
           var color = game.turn() === "b" ? "Black" : "White";
 
-          var playerIsWhite = board.orientation === "white";
+          var playerIsWhite = board.orientation() === "white";
           var isPlayerTurn = playerIsWhite && color === "White";
           var border;
 
@@ -222,8 +225,9 @@ html(lang="en")
             $("#status").empty();
           }
 
-          $("#chessboard").children().children().css('border', '8px solid ' + border);
-
+          if (player) {
+              $("#chessboard > div > div").css('border', '8px solid ' + border);
+          }
           $("#pgn").text(game.pgn());
       };
 
