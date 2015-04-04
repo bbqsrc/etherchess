@@ -127,12 +127,12 @@ html(lang="en")
           var border;
 
           if (playerIsWhite) {
-              border = color === "Black" ? "white" : "green";
+              border = color === "Black" ? "white" : "#9f6";
           } else {
-              border = color === "White" ? "white" : "green";
+              border = color === "White" ? "white" : "#9f6";
           }
 
-          $("#chessboard").css('border', '3px solid ' + border);
+          $("#chessboard").children().css('border', '5px solid ' + border);
           $("#turn").text(color);
 
           if (game.in_checkmate()) {
