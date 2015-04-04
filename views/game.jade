@@ -46,13 +46,29 @@ html(lang="en")
       });
 
       var game = Chess();
+      var player = null;
 
       socket.on('connect', function() {
           socket.emit('connected', {id: id})
       });
 
       socket.on('gamestate', function(data) {
-        console.log(data);
+          console.log(data);
+
+          if (data.blackPlayer) {
+              $(".btn-player-black").attr({
+                'disabled': 'disabled',
+                'data-player': data.blackPlayer
+              });
+          }
+
+          if (data.whitePlayer) {
+              $(".btn-player-white").attr({
+                'disabled': 'disabled',
+                'data-player': data.whitePlayer
+              });
+          }
+
           game.load_pgn(data.pgn);
           board.position(game.fen());
           updateStatus();
@@ -63,11 +79,19 @@ html(lang="en")
 
           if (data.success) {
               board.orientation(data.color);
+              player = data.color;
+          }
+
+          if (data.playerId || data.success) {
+              $(".btn-player-" + data.color).attr({
+                'disabled': 'disabled',
+                'data-player': data.playerId || socket.id
+              });
           }
       });
 
       socket.on('moved piece', function(data) {
-        console.log(data);
+          console.log(data);
 
           game.load_pgn(data.pgn);
           board.position(game.fen());
@@ -83,6 +107,10 @@ html(lang="en")
       });
 
       function onDragStart(src, piece, pos, orientation) {
+        if (player == null) {
+          return false;
+        }
+
         if (game.game_over()) {
           return false;
         }

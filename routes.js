@@ -29,6 +29,16 @@ Game.prototype.setPlayer = function(color, id) {
     return this.save();
 }
 
+Game.prototype.isPlayer = function(id) {
+    if (this.record.blackPlayer == id) {
+        return "black";
+    } else if (this.record.whitePlayer == id) {
+        return "white";
+    }
+
+    return false;
+}
+
 Game.prototype.syncPGN = function() {
     this.record.pgn = this.engine.pgn();
     return this.save();
@@ -37,6 +47,7 @@ Game.prototype.syncPGN = function() {
 Game.prototype.save = function() {
     var self = this;
     return new Promise(function(resolve, reject) {
+        console.log(self.record);
         GamesCollection.updateById(self.record._id, {
             $set: self.record
         }).success(function(doc) {
@@ -116,16 +127,20 @@ module.exports.socket = function(socket) {
         Game.getOrCreate(gameId).then(function(g) {
             game = g;
 
-            game.nope = uuid.v4();
-
             socket.emit('gamestate', {
                 id: gameId,
-                pgn: game.engine.pgn()
+                pgn: game.engine.pgn(),
+                blackPlayer: game.record.blackPlayer,
+                whitePlayer: game.record.whitePlayer
             });
         });
     });
 
     socket.on('move piece', function(data) {
+        if (!game.isPlayer(socket.id)) {
+            return;
+        }
+
         var move = game.engine.move(data.move);
 
         if (move != null) {
@@ -141,49 +156,50 @@ module.exports.socket = function(socket) {
                     pgn: game.engine.pgn()
                 });
             });
-
         } else {
-            console.error("!!!");
+            console.error(gameId);
             console.error(game.engine.ascii());
         }
-        /*
-        var possibleMoves = game.moves();
-
-        // game over
-        if (possibleMoves.length === 0) return;
-
-        var randomIndex = Math.floor(Math.random() * possibleMoves.length);
-        game.move(possibleMoves[randomIndex]);
-
-        setTimeout(function() {
-            socket.emit('moved piece', {
-                move: data.move,
-                fen: game.fen()
-            });
-            socket.broadcast.emit('moved piece', {
-                move: data.move,
-                fen: game.fen()
-            });
-        }, 250);
-        */
     });
 
     socket.on('select color', function(data) {
         if (data.color == "black" || data.color == "white") {
-            if (false/*session.get(data.color + 'Player')*/) {
+            if (game.record[data.color + "Player"]) {
                 socket.emit('selected color', {
                     success: false,
                     color: data.color,
                     reason: "Player " + data.color + " already taken."
                 });
             } else {
-                //session.set(data.color + 'Player', socket.id);
-                //session.save();
-                socket.emit('selected color', {
-                    success: true,
-                    color: data.color
+                console.log(socket.id);
+                game.setPlayer(data.color, socket.id).then(function() {
+                    socket.emit('selected color', {
+                        success: true,
+                        color: data.color
+                    });
+
+                    socket.broadcast.to(gameId).emit('selected color', {
+                        playerId: socket.id,
+                        color: data.color
+                    });
                 });
             }
+        }
+    });
+
+    socket.on('disconnect', function() {
+        if (game == null) {
+            return;
+        }
+
+        var color = game.isPlayer(socket.id)
+
+        if (color) {
+            game.setPlayer(color, null);
+
+            socket.broadcast.to(gameId).emit('disconnected', {
+                playerId: socket.id
+            });
         }
     });
 };
