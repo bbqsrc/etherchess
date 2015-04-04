@@ -24,6 +24,10 @@ html(lang="en")
       #timer { margin-left: 0.5em; }
       #pgn, #fen { border: 1px solid #ddd; margin: 1em 1em; font-size: 90%; word-wrap: break-word; font-family: monospace; white-space: pre-wrap; }
       #status { color: red; line-height: 2.7em; font-weight: bold; font-size: 110%; height: 2em; margin: 0.5em 1em }
+      .highlight-player {
+          box-shadow: inset 0 0 3px 5px #77f;
+      }
+      .highlight-enemy { box-shadow: inset 0 0 4px 4px red; }
   body
     #container
       #status
@@ -45,8 +49,25 @@ html(lang="en")
           draggable: true,
           onDragStart: onDragStart,
           onDrop: onDrop,
-          onSnapEnd: onSnapEnd
+          onSnapEnd: onSnapEnd,
+          onMouseoutSquare: onMouseoutSquare,
+          onMouseoverSquare: onMouseoverSquare
       });
+
+      var removeGreySquares = function() {
+        $('#chessboard .square-55d63').css('background', '');
+      };
+
+      var greySquare = function(square) {
+        var squareEl = $('#chessboard .square-' + square);
+
+        var background = '#a9a9a9';
+        if (squareEl.hasClass('black-3c85d') === true) {
+          background = '#696969';
+        }
+
+        squareEl.css('background', background);
+      };
 
       var game = Chess();
       var player = null;
@@ -118,6 +139,29 @@ html(lang="en")
           socket.emit('select color', { color: 'white' });
       });
 
+      function onMouseoverSquare(square, piece) {
+        // get list of possible moves for this square
+        var moves = game.moves({
+          square: square,
+          verbose: true
+        });
+
+        // exit if there are no moves available for this square
+        if (moves.length === 0) return;
+
+        // highlight the square they moused over
+        greySquare(square);
+
+        // highlight the possible squares for this piece
+        for (var i = 0; i < moves.length; i++) {
+          greySquare(moves[i].to);
+        }
+      };
+
+      function onMouseoutSquare(square, piece) {
+          removeGreySquares();
+      };
+
       function onDragStart(src, piece, pos, orientation) {
         if (player == null) {
           return false;
@@ -139,27 +183,32 @@ html(lang="en")
       }
 
       function onDrop(source, target) {
-        // see if the move is legal
-        var proposal = {
-          from: source,
-          to: target,
-          promotion: 'q' // NOTE: always promote to a queen for example simplicity
-        }
+          // see if the move is legal
+          var proposal = {
+              from: source,
+              to: target,
+              promotion: 'q'
+          }
 
-        var move = game.move(proposal);
+          var move = game.move(proposal);
 
-        // illegal move
-        if (move === null) return 'snapback';
+          // illegal move
+          if (move === null) return 'snapback';
 
-        socket.emit('move piece', { move: proposal });
+          $("#chessboard").find(".highlight-player").remove();
+          $("#chessboard")
+              .find('.square-' + source + ', .square-' + target)
+              .addClass('highlight-player');
 
-        updateStatus();
+          socket.emit('move piece', { move: proposal });
+
+          updateStatus();
       };
 
       // update the board position after the piece snap
       // for castling, en passant, pawn promotion
       function onSnapEnd() {
-        board.position(game.fen());
+          board.position(game.fen());
       };
 
       var timer = $("#timer"),
