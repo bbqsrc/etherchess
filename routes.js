@@ -62,7 +62,7 @@ module.exports.socket = function(socket) {
 
         socket.emit('gamestate', {
             id: gameId,
-            fen: game.fen()
+            pgn: game.pgn()
         });
     });
 
@@ -73,23 +73,18 @@ module.exports.socket = function(socket) {
             socket.emit('moved piece', {
                 success: true,
                 move: move,
-                fen: game.fen()
+                pgn: game.pgn()
             });
 
             socket.broadcast.to(gameId).emit('moved piece', {
                 move: move,
-                fen: game.fen()
-            });
-
-            session.set({
-                fen: game.fen()//,
-                //pgn: game.pgn()
+                pgn: game.pgn()
             });
         } else {
             socket.emit('moved piece', {
                 success: false,
                 move: move,
-                fen: game.fen()
+                pgn: game.pgn()
             });
 
             socket.broadcast.to(gameId).emit('moved piece', "ERROR");

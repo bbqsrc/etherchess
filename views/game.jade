@@ -8,15 +8,29 @@ html(lang="en")
     script(src='/js/chessboard-0.3.0.min.js')
     link(rel='stylesheet', href='/css/chessboard-0.3.0.min.css')
     style.
+      body { font-family: sans-serif; background-color: #eee }
+      #container { margin: 0 auto; max-width: 960px; background-color: white; }
       #chessboard {
         height: 600px;
         width: 600px;
         display: inline-block;
       }
+      #messages { vertical-align: top; display: inline-block; max-width: 360px; }
+      #messages > * { margin-bottom: 1em; }
+      #turn:before { content: "Turn: "; }
+      #turn { font-weight: bold; }
+      #pgn, #fen { border: 1px solid #ddd; margin: 1em 1em; font-size: 90%; word-wrap: break-word; font-family: monospace; white-space: pre-wrap; }
+      #status { color: red; line-height: 2.7em; font-weight: bold; font-size: 110%; height: 2em; margin: 0.5em 1em }
   body
-    #chessboard
-    button(type='button', class='btn-player-white') White
-    button(type='button', class='btn-player-black') Black
+    #container
+      #status
+      #chessboard
+      #messages
+        #turn
+      .controls
+        button(type='button', class='btn-player-white') White
+        button(type='button', class='btn-player-black') Black
+      #pgn
     script.
       var id = "#{id}";
       var socket = io.connect(location.origin);
@@ -37,8 +51,9 @@ html(lang="en")
 
       socket.on('gamestate', function(data) {
         console.log(data);
-          game.load(data.fen);
-          board.position(data.fen);
+          game.load_pgn(data.pgn);
+          board.position(game.fen());
+          updateStatus();
       });
 
       socket.on('selected color', function(data) {
@@ -52,8 +67,9 @@ html(lang="en")
       socket.on('moved piece', function(data) {
         console.log(data);
 
-        game.load(data.fen);
-        board.position(data.fen);
+          game.load_pgn(data.pgn);
+          board.position(game.fen());
+          updateStatus();
       });
 
       $(".btn-player-black").on('click', function() {
@@ -105,5 +121,26 @@ html(lang="en")
       };
 
       function updateStatus() {
+          var color = game.turn() === "b" ? "Black" : "White"
+
+          $("#turn").text(color);
+
+          if (game.in_checkmate()) {
+            $("#status").text(color + " is in checkmate, and loses!");
+          }
+
+          else if (game.in_draw()) {
+            $("#status").text("You have ended in a stalemate!");
+          }
+
+          else if (game.in_check()) {
+            $("#status").text(color + " is in check!");
+          }
+
+          else {
+            $("#status").empty();
+          }
+
+          $("#pgn").text(game.pgn());
       };
 
